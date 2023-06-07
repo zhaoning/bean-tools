@@ -2,36 +2,39 @@
 import re
 import sys
 import json
+from datetime import datetime
 
 posting_indent = 4
 metadata_indent = 8
 decimal_align = 50
-txn_reserve_keys = ['date', 'directive', 'flag', 'payee', 'narration',
-                    'tags', 'links', 'beancount']
+date_format = "%Y-%m-%d"
 
 precision = {'ETH': 6}
 
 
-alnums = re.compile(r'[0-9a-z]+')
+lowernums = re.compile(r'[0-9a-z]+')
 
-def comma_list(line):
-    """Parse comma-separated list and format for use as tags or links.
+def mask_list(line, sep=' ', chunk=lowernums):
+    """Chop a string into a list and mask illegal characters.
+
+    Legal character is defined in regex `chunk`.  This function is created to
+    extract tags or links.
     """
-    ls = line.lower().split(',')
-    ls = ['-'.join(alnums.findall(s)) for s in ls]
+    ls = line.lower().split(sep)
+    ls = ['-'.join(chunk.findall(s)) for s in ls]
 
     return [s for s in ls if s]
 
 def tags(line):
     """Format tags from comma separated string.
     """
-    return ' '.join(['#' + s for s in comma_list(line)])
+    return ' '.join(['#' + s for s in mask_list(line)])
 
 
 def links(line):
     """Format links from comma separated string.
     """
-    return ' '.join(['^' + s for s in comma_list(line)])
+    return ' '.join(['^' + s for s in mask_list(line)])
 
 
 def metadata(adict):
@@ -109,23 +112,66 @@ def transaction(tdict, copy=False):
         return [head + '\n' + post + '\n']
 
 
-if hasattr(sys, 'ps1'):
-    # Interactive debugging
-    tdict = {'date': '2021-07-28',
-             'flag': '*',
-             'payee': 'KFC',
-             'narration': '',
-             'note': 'I love Macca\'s',
-             'postings': [{'account': 'Expenses:Dining-Out  ',
-                           'amount': 2.99,
-                           'note': 'Just kidding...\n',
-                           'currency': ' AUD  '},
-                          {'account': 'Assets:Checking:Virgin-Go '}],
-             'tags': 'beijing.2012, ,,   #annual/leave  ',
-             'links': 'ha^.^ha, hoho, ^proper-link'}
-else:
+def is_on_schedule(date, schedule):
+    d = datetime.strptime(date, date_format).date()
+
+    if schedule['type'] == 'intervals since':
+        d0 = datetime.strptime(schedule['since'], date_format).date()
+        return True if (d - d0).days % schedule['interval'] == 0 else False
+    elif schedule['type'] == 'day of month':
+        return False
+    else:
+        return False
+
+
+def noop(request):
+    """Handlbe dummy directive `noop`, no operation.
+    """
+    return []
+
+
+def txn(request):
+    """Handle directive `txn`.
+    """
+    req = request.copy()
+
+    schedule = req.pop('schedule', None)
+    date = req.get('date', datetime.now().date().isoformat())
+    if schedule:
+        if is_on_schedule(date, schedule):
+            req['date'] = date
+        else:
+            return []
+
+    return transaction(req, copy=True)
+
+
+def balance(request):
+    """Handle directive `balance`.
+    """
+    pass
+
+
+def pad(request):
+    """Handle directive `pad`.
+    """
+    pass
+
+
+def triage(request):
+    """Process directive and call appropriate handlers.
+    """
+    handlers = {'txn': txn,
+                'balance': balance,
+                'pad': pad,
+                'noop': noop}
+    return handlers[request.pop('directive', 'txn')](request)
+
+
+if not hasattr(sys, 'ps1'):
     # Non-interactive run
-    tdict = json.loads(sys.stdin.read())
-    tdict['beancount'] = transaction(tdict, copy=True)
-    print(json.dumps(tdict, indent=4))
+    request = json.loads(sys.stdin.read())
+    request['beancount'] = triage(request)
+    sys.stdout.write(json.dumps(request, indent=4))
+    sys.stdout.write('\n')
 
