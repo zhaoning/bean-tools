@@ -2,6 +2,6 @@
 import sys
 import json
 
-tdict = json.loads(sys.stdin.read())
-_ = [print(j) for j in tdict['beancount']]
+request = json.loads(sys.stdin.read())
+_ = [print(j) for j in request.get('beancount', [])]
 
