@@ -1,0 +1,20 @@
+{
+        "name": "Parramatta Rent Receivable",
+        "narration": "Scheduled",
+        "tags": "180george",
+        "postings": [
+                {
+                        "account": "Assets:Receivable:Tenant-1841",
+                        "amount": 1280,
+                        "currency": "AUD"
+                },
+                {
+                        "account": "Income:Investment:Rent"
+                }
+        ],
+        "schedule": {
+                "type": "intervals since",
+                "interval": 14,
+                "since": "2023-05-14"
+        }
+}

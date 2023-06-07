@@ -1,6 +1,6 @@
 {
         "name": "Just a quick test",
-        "directive": "txn",
+        "directive": "noop",
         "date": "2021-07-29",
         "narration": "Internal Transfer",
         "tags": "  tokyo,2020  #sydney-2000",
