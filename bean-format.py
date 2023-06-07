@@ -127,5 +127,5 @@ else:
     # Non-interactive run
     tdict = json.loads(sys.stdin.read())
     tdict['beancount'] = transaction(tdict, copy=True)
-    print(json.dumps(tdict))
+    print(json.dumps(tdict, indent=4))
 
