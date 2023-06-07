@@ -1,0 +1,16 @@
+{
+        "name": "Just a quick test",
+        "directive": "txn",
+        "date": "2021-07-29",
+        "narration": "Internal Transfer",
+        "postings": [
+                {
+                        "account": "Assets:Checking:CBA-Access",
+                        "amount": 100,
+                        "currency": "AUD"
+                },
+                {
+                        "account": "Assets:Cash"
+                }
+        ]
+}
