@@ -1,0 +1,22 @@
+{
+        "name": "CMB Current Interest",
+        "flag": "!",
+        "date": "2023-06-21",
+        "payee": "China Merchant Bank",
+        "postings": [
+                {
+                        "account": "Assets:Checking:CMB",
+                        "amount": 1,
+                        "currency": "CNY"
+                },
+                {
+                        "account": "Income:Investment:Interest"
+                }
+        ],
+        "schedule": {
+                "type": "day of months",
+                "day": 21,
+                "months": [3, 6, 9, 12]
+        }
+}
+
