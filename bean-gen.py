@@ -42,7 +42,7 @@ def metadata(adict):
     return meta
 
 
-def posting(pdict, copy=False):
+def posting(pdict, copy=True):
     """Format posting from a posting dict.
     """
     pd = pdict.copy() if copy else pdict
@@ -81,29 +81,25 @@ def posting(pdict, copy=False):
         return line
 
 
-def transaction(tdict, copy=False):
-    """Format transaction header line from transaction dict.
+def transaction(tdict):
+    """Format transaction line from transaction dict.
     """
-    td = tdict.copy() if copy else tdict
-    _ = td.pop('beancount', None)
-    _ = td.pop('schedule', None)
+    head = tdict.pop('date') + ' ' + tdict.pop('flag', '*')
 
-    head = td.pop('date') + ' ' + td.pop('flag', '*')
+    if 'payee' in tdict:
+        head += f" \"{tdict.pop('payee')}\""
 
-    if 'payee' in td:
-        head += f" \"{td.pop('payee')}\""
+    head += f" \"{tdict.pop('narration', '')}\""
 
-    head += f" \"{td.pop('narration', '')}\""
+    if 'tags' in tdict:
+        head += ' ' + tags(tdict.pop('tags'))
 
-    if 'tags' in td:
-        head += ' ' + tags(td.pop('tags'))
+    if 'links' in tdict:
+        head += ' ' + links(tdict.pop('links'))
 
-    if 'links' in td:
-        head += ' ' + links(td.pop('links'))
+    post = '\n'.join([posting(p) for p in tdict.pop('postings')])
 
-    post = '\n'.join([posting(p, copy=copy) for p in td.pop('postings')])
-
-    meta = metadata(td)
+    meta = metadata(tdict)
 
     if meta:
         return [head + '\n' + meta + '\n' + post + '\n']
@@ -143,17 +139,15 @@ def noop(request):
 def txn(request):
     """Handle directive `txn`.
     """
-    req = request.copy()
-
-    schedule = req.pop('schedule', None)
-    req_date = req.get('date', date.today().isoformat()).strip()
+    schedule = request.pop('schedule', None)
+    req_date = request.get('date', date.today().isoformat()).strip()
     if schedule:
         if is_on_schedule(req_date, schedule):
-            req['date'] = req_date
+            request['date'] = req_date
         else:
             return []
 
-    return transaction(req, copy=True)
+    return transaction(request)
 
 
 def balance(request):
@@ -171,11 +165,15 @@ def pad(request):
 def triage(request):
     """Process directive and call appropriate handlers.
     """
+    req = request.copy()
+    _ = req.pop('beancount', None)
+    _ = req.pop('commit', None)
+
     handlers = {'txn': txn,
                 'balance': balance,
                 'pad': pad,
                 'noop': noop}
-    return handlers[request.pop('directive', 'txn')](request)
+    return handlers[req.pop('directive', 'txn')](req)
 
 
 if not hasattr(sys, 'ps1'):
