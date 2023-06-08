@@ -2,12 +2,11 @@
 import re
 import sys
 import json
-from datetime import datetime
+from datetime import date, timedelta
 
 posting_indent = 4
 metadata_indent = 8
 decimal_align = 50
-date_format = "%Y-%m-%d"
 
 precision = {'ETH': 6}
 
@@ -112,14 +111,25 @@ def transaction(tdict, copy=False):
         return [head + '\n' + post + '\n']
 
 
-def is_on_schedule(date, schedule):
-    d = datetime.strptime(date, date_format).date()
+def is_on_schedule(req_date, schedule):
+    req_date = date.fromisoformat(req_date)
+    expire = schedule.get('expire', '').strip()
+
+    if expire and req_date >= date.fromisoformat(expire):
+        return False
 
     if schedule['type'] == 'intervals since':
-        d0 = datetime.strptime(schedule['since'], date_format).date()
-        return True if (d - d0).days % schedule['interval'] == 0 else False
+        d0 = date.fromisoformat(schedule['since'])
+        return (True if (req_date - d0).days % schedule['interval'] == 0
+                else False)
     elif schedule['type'] == 'day of month':
-        return False
+        return True if req_date.day == schedule['day'] else False
+    elif schedule['type'] == 'end of month':
+        return True if (req_date + timedelta(days=1)).day == 1 else False
+    elif schedule['type'] == 'day of months':
+        return (True if (req_date.month in schedule['months']
+                         and req_date.day == schedule['day'])
+                else False)
     else:
         return False
 
@@ -136,10 +146,10 @@ def txn(request):
     req = request.copy()
 
     schedule = req.pop('schedule', None)
-    date = req.get('date', datetime.now().date().isoformat())
+    req_date = req.get('date', date.today().isoformat()).strip()
     if schedule:
-        if is_on_schedule(date, schedule):
-            req['date'] = date
+        if is_on_schedule(req_date, schedule):
+            req['date'] = req_date
         else:
             return []
 
