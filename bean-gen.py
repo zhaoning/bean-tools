@@ -38,7 +38,7 @@ def links(line):
 
 def metadata(adict):
     meta = '\n'.join([' ' * metadata_indent + f"{k}: \"{str(v).strip()}\""
-                      for k, v in adict.items()])
+                      for k, v in adict.items() if v])
     return meta
 
 
@@ -91,10 +91,10 @@ def transaction(tdict):
 
     head += f" \"{tdict.pop('narration', '')}\""
 
-    if 'tags' in tdict:
+    if 'tags' in tdict and tdict['tags']:
         head += ' ' + tags(tdict.pop('tags'))
 
-    if 'links' in tdict:
+    if 'links' in tdict and tdict['links']:
         head += ' ' + links(tdict.pop('links'))
 
     post = '\n'.join([posting(p) for p in tdict.pop('postings')])
@@ -153,7 +153,12 @@ def txn(request):
 def balance(request):
     """Handle directive `balance`.
     """
-    pass
+    line = request.pop('date') + ' balance ' + request.pop('account')
+    amount = request.pop('amount')
+    currency = request.pop('currency')
+    p = precision.get(currency, 2)
+    line += f" {amount:,.{p}f} {currency}\n"
+    return [line]
 
 
 def pad(request):
