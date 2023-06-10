@@ -2,11 +2,22 @@
 import re
 import sys
 import json
+import argparse
 from datetime import date, timedelta
 
-posting_indent = 4
-metadata_indent = 8
-decimal_align = 50
+parser = argparse.ArgumentParser(description='Beancount journal distributor')
+
+pg_mode = parser.add_mutually_exclusive_group()
+pg_mode.add_argument('-m', '--mono')
+pg_mode.add_argument('-t', '--tree')
+
+parser.add_argument('-v', '--verbose', action='count', default=0)
+
+parser.add_argument('--posting-indent', default=4, type=int)
+parser.add_argument('--metadata-indent', default=8, type=int)
+parser.add_argument('--decimal-align', default=50, type=int)
+
+args = parser.parse_args()
 
 precision = {'ETH': 6}
 
@@ -37,7 +48,7 @@ def links(line):
 
 
 def metadata(adict):
-    meta = '\n'.join([' ' * metadata_indent + f"{k}: \"{str(v).strip()}\""
+    meta = '\n'.join([' ' * args.metadata_indent + f"{k}: \"{str(v).strip()}\""
                       for k, v in adict.items() if v])
     return meta
 
@@ -53,7 +64,7 @@ def posting(pdict, copy=True):
     cost = pd.pop('cost', '').strip()
     price = pd.pop('price', '').strip()
 
-    line = ' ' * posting_indent + account
+    line = ' ' * args.posting_indent + account
 
     if amount:
         p = precision.get(currency, 2)
@@ -63,8 +74,8 @@ def posting(pdict, copy=True):
         except ValuaError:
             whole_amount_width = len(amt_str)
         finally:
-            pad = ' ' * max(decimal_align
-                            - posting_indent
+            pad = ' ' * max(args.decimal_align
+                            - args.posting_indent
                             - len(account)
                             - whole_amount_width - 1, 2)
         line += pad + amt_str
