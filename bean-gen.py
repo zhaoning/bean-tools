@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
+import os
 import re
 import sys
 import json
+import pathlib
 import argparse
 from datetime import date, timedelta
 
 parser = argparse.ArgumentParser(description='Beancount journal distributor')
 
-pg_mode = parser.add_mutually_exclusive_group()
-pg_mode.add_argument('-m', '--mono')
-pg_mode.add_argument('-t', '--tree')
-
+parser.add_argument('-m', '--mono')
+parser.add_argument('-t', '--tree')
 parser.add_argument('-v', '--verbose', action='count', default=0)
 
 parser.add_argument('--posting-indent', default=4, type=int)
+parser.add_argument('--json-indent', default=4, type=int)
 parser.add_argument('--metadata-indent', default=8, type=int)
 parser.add_argument('--decimal-align', default=50, type=int)
 
@@ -178,7 +179,7 @@ def pad(request):
     pass
 
 
-def triage(request):
+def gen_journal(request):
     """Process directive and call appropriate handlers.
     """
     req = request.copy()
@@ -195,7 +196,23 @@ def triage(request):
 if not hasattr(sys, 'ps1'):
     # Non-interactive run
     request = json.loads(sys.stdin.read())
-    request['beancount'] = triage(request)
-    sys.stdout.write(json.dumps(request, indent=4))
-    sys.stdout.write('\n')
+    journals = gen_journal(request)
+
+    if args.verbose == 1:
+        _ = [sys.stdout.write(j + '\n') for j in journals]
+    elif args.verbose == 2:
+        request['beancount'] = journals
+        sys.stdout.write(json.dumps(request, indent=args.json_indent) + '\n')
+
+    if args.mono:
+        with open(args.mono, 'a') as fd:
+            _ = [fd.write('\n' + j) for j in journals]
+
+    if args.tree:
+        for j in journals:
+            p = pathlib.Path(os.path.join(args.tree, j[:4]))
+            p.mkdir(parents=True, exist_ok=True)
+            fn = os.path.join(args.tree, j[:4], j[5:7] + '.bean')
+            with open(fn, 'a') as fd:
+                fd.write('\n' + j)
 
