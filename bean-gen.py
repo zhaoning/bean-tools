@@ -5,14 +5,19 @@ import sys
 import json
 import pathlib
 import argparse
+import subprocess
+
 from datetime import date, timedelta
-from git import Repo
 
 parser = argparse.ArgumentParser(description='Beancount journal distributor')
 
+parser.add_argument('-r', '--repo')
 parser.add_argument('-m', '--mono')
 parser.add_argument('-t', '--tree')
+parser.add_argument('-c', '--commit', action='store_true')
+parser.add_argument('-p', '--push', action='store_true')
 parser.add_argument('-v', '--verbose', action='count', default=0)
+parser.add_argument('-s', '--message', default='Committed by bean-gen')
 
 parser.add_argument('--posting-indent', default=4, type=int)
 parser.add_argument('--json-indent', default=4, type=int)
@@ -185,7 +190,7 @@ def gen_journal(request):
     """
     req = request.copy()
     _ = req.pop('beancount', None)
-    _ = req.pop('commit', None)
+    _ = req.pop('message', None)
 
     handlers = {'txn': txn,
                 'balance': balance,
@@ -194,11 +199,11 @@ def gen_journal(request):
     return handlers[req.pop('directive', 'txn')](req)
 
 
-def tree_file(journal, root):
+def tree_file(journal):
     """Decide which file to write a journal entry to under tree method.
     """
     d = date.fromisoformat(journal[:10])
-    return os.path.join(root, f"{d.year:04d}", f"{d.month:02d}.bean")
+    return os.path.join(f"{d.year:04d}", f"{d.month:02d}.bean")
 
 
 if not hasattr(sys, 'ps1'):
@@ -213,18 +218,30 @@ if not hasattr(sys, 'ps1'):
         sys.stdout.write(json.dumps(request, indent=args.json_indent) + '\n')
 
     if args.mono:
-        dir_name = os.path.dirname(args.mono)
-        pathlib.Path(dir_name).mkdir(parents=True, exist_ok=True)
-        with open(args.mono, 'a') as fd:
+        fn = args.mono if not args.repo else os.path.join(args.repo, args.mono)
+        pathlib.Path(os.path.dirname(fn)).mkdir(parents=True, exist_ok=True)
+        with open(fn, 'a') as fd:
             _ = [fd.write('\n' + j) for j in journals]
-        Repo(dir_name).git.add([args.mono])
+        if args.repo:
+            subprocess.run(['git', '-C', args.repo, 'add', args.mono])
 
     if args.tree:
         for j in journals:
-            fn = tree_file(j, args.tree)
-            dir_name = os.path.dirname(fn)
-            pathlib.Path(dir_name).mkdir(parents=True, exist_ok=True)
+            subtree = tree_file(j)
+            fn = (os.path.join(args.tree, subtree) if not args.repo
+                  else os.path.join(args.repo, args.tree, subtree))
+            pathlib.Path(os.path.dirname(fn)).mkdir(parents=True,
+                                                    exist_ok=True)
             with open(fn, 'a') as fd:
                 fd.write('\n' + j)
-            Repo(args.tree).git.add([fn])
+            if args.repo:
+                subprocess.run(['git', '-C', args.repo, 'add',
+                                os.path.join(args.tree, subtree)])
+
+    if args.repo:
+        message = request.get('message', args.message)
+        if args.commit:
+            subprocess.run(['git', '-C', args.repo, 'commit', '-m', message])
+        if args.push:
+            subprocess.run(['git', '-C', args.repo, 'push'])
 
