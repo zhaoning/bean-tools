@@ -6,6 +6,7 @@ import json
 import pathlib
 import argparse
 from datetime import date, timedelta
+from git import Repo
 
 parser = argparse.ArgumentParser(description='Beancount journal distributor')
 
@@ -193,6 +194,13 @@ def gen_journal(request):
     return handlers[req.pop('directive', 'txn')](req)
 
 
+def tree_file(journal, root):
+    """Decide which file to write a journal entry to under tree method.
+    """
+    d = date.fromisoformat(journal[:10])
+    return os.path.join(root, f"{d.year:04d}", f"{d.month:02d}.bean")
+
+
 if not hasattr(sys, 'ps1'):
     # Non-interactive run
     request = json.loads(sys.stdin.read())
@@ -205,14 +213,18 @@ if not hasattr(sys, 'ps1'):
         sys.stdout.write(json.dumps(request, indent=args.json_indent) + '\n')
 
     if args.mono:
+        dir_name = os.path.dirname(args.mono)
+        pathlib.Path(dir_name).mkdir(parents=True, exist_ok=True)
         with open(args.mono, 'a') as fd:
             _ = [fd.write('\n' + j) for j in journals]
+        Repo(dir_name).git.add([args.mono])
 
     if args.tree:
         for j in journals:
-            p = pathlib.Path(os.path.join(args.tree, j[:4]))
-            p.mkdir(parents=True, exist_ok=True)
-            fn = os.path.join(args.tree, j[:4], j[5:7] + '.bean')
+            fn = tree_file(j, args.tree)
+            dir_name = os.path.dirname(fn)
+            pathlib.Path(dir_name).mkdir(parents=True, exist_ok=True)
             with open(fn, 'a') as fd:
                 fd.write('\n' + j)
+            Repo(args.tree).git.add([fn])
 
