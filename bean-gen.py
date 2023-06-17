@@ -28,6 +28,11 @@ args = parser.parse_args()
 
 precision = {'ETH': 6}
 
+class BeanRequest:
+    """One single beancount request.
+    """
+    def __init__(self, **data):
+        self.__dict__.update(data)
 
 lowernums = re.compile(r'[0-9a-z]+')
 
