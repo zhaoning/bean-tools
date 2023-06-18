@@ -29,7 +29,7 @@ class BeanRequest:
     """One single beancount request.
     """
     def __init__(self, **data):
-        self.__dict__.update(data)
+        self.meta = data.copy()
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -39,33 +39,54 @@ class BeanPosting(BeanRequest):
     """
     def __init__(self, **data):
         super().__init__(**data)
-        self.validate()
-
-    def validate(self):
-        if not hasattr(self, 'account'):
-            raise KeyError('Account required in BeanPosting.')
+        self.account = self.meta.pop('account')
+        self.amount = self.meta.pop('amount', 0)
+        self.currency = self.meta.pop('currency', '')
+        self.cost = self.meta.pop('cost', '')
+        self.price = self.meta.pop('price', '')
 
     def __str__(self):
-        pass
+        pd = pdict.copy() if copy else pdict
+
+        account = pd.pop('account').strip()
+        amount = pd.pop('amount', 0)
+        currency = pd.pop('currency', '').strip()
+        cost = pd.pop('cost', '').strip()
+        price = pd.pop('price', '').strip()
+
+        line = ' ' * args.posting_indent + account
+
+        if amount:
+            p = precision.get(currency, 2)
+            amt_str = f"{amount:,.{p}f}"
+            try:
+                whole_amount_width = amt_str.index('.')
+            except ValuaError:
+                whole_amount_width = len(amt_str)
+            finally:
+                pad = ' ' * max(args.decimal_align
+                                - args.posting_indent
+                                - len(account)
+                                - whole_amount_width - 1, 2)
+            line += pad + amt_str
+
+            line += ' ' + currency if currency else ''
+            line += ' ' + cost if cost else ''
+            line += ' ' + price if price else ''
+
+        meta = metadata(pd)
+
+        if meta:
+            return line + '\n' + meta
+        else:
+            return line
 
 class BeanTransaction(BeanRequest):
     """Beancount transaction request.
     """
     def __init__(self, **data):
-        postings = data.pop('postings')
         super().__init__(**data)
-        self.postings = [BeanPosting(**p) for p in postings]
-        self.validate()
-
-    def validate(self):
-        if not hasattr(self, 'date'):
-            self.date = date.today().isoformat()
-
-        if not hasattr(self, 'narration'):
-            self.narration = ''
-
-        if not hasattr(self, 'postings'):
-            raise KeyError('Postings not found in BeanTransaction.')
+        self.postings = [BeanPosting(**p) for p in self.meta.pop('postings')]
 
     def __str__(self):
         pass
