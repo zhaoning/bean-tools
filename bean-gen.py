@@ -25,6 +25,9 @@ parser.add_argument('--metadata-indent', default=8, type=int)
 parser.add_argument('--decimal-align', default=50, type=int)
 args = parser.parse_args()
 
+# Precision
+precision = {'ETH': 6}
+
 class BeanRequest:
     """One single beancount request.
     """
@@ -33,6 +36,12 @@ class BeanRequest:
 
     def __repr__(self):
         return self.__dict__.__repr__()
+
+    def metadata(self):
+        return '\n'.join([' ' * args.metadata_indent
+                          + f"{k}: "
+                          + (f'"{v.strip()}"' if type(v) is str else str(v))
+                          for k, v in self.meta.items() if v])
 
 class BeanPosting(BeanRequest):
     """Beancount transaction posting request.
@@ -46,35 +55,27 @@ class BeanPosting(BeanRequest):
         self.price = self.meta.pop('price', '')
 
     def __str__(self):
-        pd = pdict.copy() if copy else pdict
+        line = ' ' * args.posting_indent + self.account
 
-        account = pd.pop('account').strip()
-        amount = pd.pop('amount', 0)
-        currency = pd.pop('currency', '').strip()
-        cost = pd.pop('cost', '').strip()
-        price = pd.pop('price', '').strip()
-
-        line = ' ' * args.posting_indent + account
-
-        if amount:
-            p = precision.get(currency, 2)
-            amt_str = f"{amount:,.{p}f}"
+        if self.amount:
+            p = precision.get(self.currency, 2)
+            amt_str = f"{self.amount:,.{p}f}"
             try:
                 whole_amount_width = amt_str.index('.')
-            except ValuaError:
+            except ValueError:
                 whole_amount_width = len(amt_str)
             finally:
                 pad = ' ' * max(args.decimal_align
                                 - args.posting_indent
-                                - len(account)
+                                - len(self.account)
                                 - whole_amount_width - 1, 2)
             line += pad + amt_str
 
-            line += ' ' + currency if currency else ''
-            line += ' ' + cost if cost else ''
-            line += ' ' + price if price else ''
+            line += ' ' + self.currency if self.currency else ''
+            line += ' ' + self.cost if self.cost else ''
+            line += ' ' + self.price if self.price else ''
 
-        meta = metadata(pd)
+        meta = self.metadata()
 
         if meta:
             return line + '\n' + meta
@@ -108,8 +109,6 @@ class BeanOpen(BeanRequest):
     def journals(self):
         pass
 
-#precision = {'ETH': 6}
-#
 #lowernums = re.compile(r'[0-9a-z]+')
 #
 #def mask_list(line, sep=' ', chunk=lowernums):
