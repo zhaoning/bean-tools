@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import pdb
-
 import os
 import re
 import sys
