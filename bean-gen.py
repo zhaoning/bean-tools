@@ -76,7 +76,24 @@ class BeanOpen(Namespace):
         line += ' "' + self.method + '"' if self.method else ''
         meta = str(self.meta)
         line += '\n' + meta if meta else ''
-        return line
+        return line + '\n'
+
+class BeanBalance(Namespace):
+    def __init__(self, **data):
+        super().__init__()
+        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.account = data.pop('account').strip()
+        self.amount = data.pop('amount')
+        self.currency = data.pop('currency', '').strip()
+        self.meta = BeanMeta(**data)
+
+    def __str__(self):
+        p = conf.precision.get(self.currency, 2)
+        amt_str = f"{self.amount:,.{p}f}"
+        meta = str(self.meta)
+        line = f"{self.date} balance {self.account} {amt_str} {self.currency}"
+        line += '\n' + meta if meta else ''
+        return line + '\n'
 
 class BeanSchedule(Namespace):
     def __init__(self, **data):
@@ -204,7 +221,8 @@ a = {
         }
 
 request_handlers = {'txn': BeanTransaction,
-                    'open': BeanOpen}
+                    'open': BeanOpen,
+                    'balance': BeanBalance}
 
 def triage(**kwargs):
     cls = request_handlers[kwargs.pop('directive', 'txn')]
