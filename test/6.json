@@ -1,0 +1,41 @@
+[
+        {
+                "name": "Just a quick test",
+                "directive": "txn",
+                "date": "2021-07-29",
+                "narration": "Internal Transfer",
+                "tags": "  tokyo,2020  #sydney-2000",
+                "postings": [
+                        {
+                                "account": "Assets:Checking:CBA-Access",
+                                "amount": 100,
+                                "currency": "AUD"
+                        },
+                        {
+                                "account": "Assets:Cash"
+                        }
+                ]
+        },
+        {
+                "name": "CMB Current Interest",
+                "flag": "!",
+                "date": "2023-06-21",
+                "payee": "China Merchant Bank",
+                "postings": [
+                        {
+                                "account": "Assets:Checking:CMB",
+                                "amount": 1,
+                                "currency": "CNY"
+                        },
+                        {
+                                "account": "Income:Investment:Interest"
+                        }
+                ],
+                "schedule": {
+                        "type": "day of months",
+                        "day": 21,
+                        "months": [3, 6, 9, 12]
+                }
+        }
+]
+

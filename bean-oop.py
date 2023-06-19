@@ -1,6 +1,13 @@
+#!/usr/bin/env python3
+import pdb
+
+import os
 import re
 import sys
 import json
+import pathlib
+import itertools
+import subprocess
 from datetime import date, timedelta
 from argparse import ArgumentParser, Namespace
 
@@ -19,9 +26,9 @@ conf = Namespace(
 # Handle command line arguments
 ap = ArgumentParser(description='Beancount journal distributor')
 ap.add_argument('-f', '--files', nargs='*')
-ap.add_argument('-r', '--repo', nargs=1)
-ap.add_argument('-m', '--mono', nargs=1)
-ap.add_argument('-t', '--tree', nargs=1)
+ap.add_argument('-r', '--repo')
+ap.add_argument('-m', '--mono')
+ap.add_argument('-t', '--tree')
 ap.add_argument('-c', '--commit', action='store_true')
 ap.add_argument('-p', '--push', action='store_true')
 ap.add_argument('-v', '--verbose', action='count', default=0)
@@ -159,9 +166,14 @@ class BeanTransaction(Namespace):
         self.tags = format_hashtags(data.pop('tags', ''), prefix='#')
         self.links = format_hashtags(data.pop('links', ''), prefix='^')
         self.postings = [BeanPosting(**p) for p in data.pop('postings')]
+        self.schedule = (BeanSchedule(**data.pop('schedule'))
+                         if 'schedule' in data else None)
         self.meta = BeanMeta(**data)
 
     def __str__(self):
+        if self.schedule and not self.schedule.check(self.date):
+            return ''
+
         text = self.date + ' ' + self.flag
         text += ' "' + self.payee + '"' if self.payee else ''
         text += ' "' + self.narration + '"'
@@ -174,7 +186,7 @@ class BeanTransaction(Namespace):
         for p in self.postings:
             text += '\n' + str(p)
 
-        return text
+        return text + '\n'
 
 a = {
         'date': '2021-11-17\n',
@@ -200,7 +212,7 @@ def triage(**kwargs):
     cls = request_handlers[kwargs.pop('directive', 'txn')]
     return cls(**kwargs)
 
-def parse_requests(req_text):
+def parse_request_text(req_text):
     data = json.loads(req_text)
 
     if type(data) is dict:
@@ -210,9 +222,50 @@ def parse_requests(req_text):
     else:
         raise TypeError(f'Unexpected data type: {type(data)}.')
 
+def parse_request_file(filename):
+    with open(filename, 'r') as f:
+        return parse_request_text(f.read())
+
 if not hasattr(sys, 'ps1'):
     # Non-interactive run
     if args.files:
-        pass
+        requests = itertools.chain.from_iterable(
+                [parse_request_file(f) for f in args.files]
+                )
     else:
-        requests = parse_requests(sys.stdin.read())
+        requests = parse_request_text(sys.stdin.read())
+
+    journals = [str(r) for r in requests]
+
+    if args.verbose >= 1:
+        _ = [sys.stdout.write(j + '\n') for j in journals if j]
+
+    if args.mono:
+        fn = args.mono if not args.repo else os.path.join(args.repo, args.mono)
+        pathlib.Path(os.path.dirname(fn)).mkdir(parents=True, exist_ok=True)
+        with open(fn, 'a') as fd:
+            _ = [fd.write('\n' + j) for j in journals]
+        if args.repo:
+            subprocess.run(['git', '-C', args.repo, 'add', args.mono])
+
+    if args.tree:
+        for j in journals:
+            d = date.fromisoformat(j[:10])
+            subtree = os.path.join(f"{d.year:04d}", f"{d.month:02d}.bean")
+            fn = (os.path.join(args.tree, subtree) if not args.repo
+                  else os.path.join(args.repo, args.tree, subtree))
+            pathlib.Path(os.path.dirname(fn)).mkdir(parents=True,
+                                                    exist_ok=True)
+            with open(fn, 'a') as fd:
+                fd.write('\n' + j)
+            if args.repo:
+                subprocess.run(['git', '-C', args.repo, 'add',
+                                os.path.join(args.tree, subtree)])
+
+    if args.repo:
+        if args.commit:
+            subprocess.run(['git', '-C', args.repo,
+                            'commit', '-m', args.message])
+        if args.push:
+            subprocess.run(['git', '-C', args.repo, 'push'])
+
