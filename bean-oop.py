@@ -1,7 +1,13 @@
 import re
+import sys
+import json
 from datetime import date, timedelta
 from argparse import ArgumentParser, Namespace
 
+# Name of this script
+script_name = sys.argv[0]
+
+# Configurations
 conf = Namespace(
         posting_indent=4,
         metadata_indent=8,
@@ -9,6 +15,18 @@ conf = Namespace(
         precision={'ETH': 6},
         hashtag_chunk=re.compile(r'[0-9a-z]+')
         )
+
+# Handle command line arguments
+ap = ArgumentParser(description='Beancount journal distributor')
+ap.add_argument('-f', '--files', nargs='*')
+ap.add_argument('-r', '--repo', nargs=1)
+ap.add_argument('-m', '--mono', nargs=1)
+ap.add_argument('-t', '--tree', nargs=1)
+ap.add_argument('-c', '--commit', action='store_true')
+ap.add_argument('-p', '--push', action='store_true')
+ap.add_argument('-v', '--verbose', action='count', default=0)
+ap.add_argument('-s', '--message', default=f'Committed by {script_name}')
+args = ap.parse_args()
 
 def format_hashtags(line, sep=' ', prefix='#', chunk=conf.hashtag_chunk):
     """Re-format a string masking illegal characters.
@@ -175,3 +193,26 @@ a = {
             ]
         }
 
+request_handlers = {'txn': BeanTransaction,
+                    'open': BeanOpen}
+
+def triage(**kwargs):
+    cls = request_handlers[kwargs.pop('directive', 'txn')]
+    return cls(**kwargs)
+
+def parse_requests(req_text):
+    data = json.loads(req_text)
+
+    if type(data) is dict:
+        return [triage(**data)]
+    elif type(data) is list:
+        return [triage(**d) for d in data]
+    else:
+        raise TypeError(f'Unexpected data type: {type(data)}.')
+
+if not hasattr(sys, 'ps1'):
+    # Non-interactive run
+    if args.files:
+        pass
+    else:
+        requests = parse_requests(sys.stdin.read())
