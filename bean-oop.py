@@ -1,5 +1,5 @@
 import re
-from datetime import date
+from datetime import date, timedelta
 from argparse import ArgumentParser, Namespace
 
 conf = Namespace(
@@ -56,7 +56,45 @@ class BeanOpen(Namespace):
         return line
 
 class BeanSchedule(Namespace):
-    pass
+    def __init__(self, **data):
+        super().__init__(**data)
+        for k, v in self.__dict__.items():
+            if v and type(v) is str:
+                try:
+                    self.__dict__[k] = date.fromisoformat(v.strip())
+                except:
+                    pass
+
+        if not hasattr(self, 'expire'):
+            self.expire = None
+
+    def check(self, d):
+        """Check if date `d` is on the schedule.
+
+        - `d` can be string or `datetime.date`.
+        """
+        if type(d) is str:
+            d = date.fromisoformat(d.strip())
+        elif type(d) is date:
+            pass
+        else:
+            raise TypeError(f"Illegal type: {type(d)}.")
+
+        if self.expire and d >= self.expire:
+            return False
+
+        if self.type == 'intervals since':
+            return (True if (d - self.since).days % self.interval == 0
+                    else False)
+        elif self.type == 'day of month':
+            return True if d.day == self.day else False
+        elif self.type == 'end of month':
+            return True if (d + timedelta(days=1)).day == 1 else False
+        elif self.type == 'day of months':
+            return (True if d.month in self.months and d.day == self.day
+                    else False)
+        else:
+            raise ValueError(f"Unexpected schedule type: {self.type}.")
 
 class BeanPosting(Namespace):
     def __init__(self, **data):
