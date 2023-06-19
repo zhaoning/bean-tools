@@ -1,0 +1,8 @@
+{
+        "directive": "balance",
+        "account": "Assets:Cash",
+        "amount": 12345.678,
+        "currency": "AUD",
+        "note": "This is dummy data.",
+        "test": "Multi line metadata."
+}
