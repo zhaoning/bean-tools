@@ -140,45 +140,6 @@ class BeanOpen(BeanRequest):
 #    return meta
 #
 #
-#def posting(pdict, copy=True):
-#    """Format posting from a posting dict.
-#    """
-#    pd = pdict.copy() if copy else pdict
-#
-#    account = pd.pop('account').strip()
-#    amount = pd.pop('amount', 0)
-#    currency = pd.pop('currency', '').strip()
-#    cost = pd.pop('cost', '').strip()
-#    price = pd.pop('price', '').strip()
-#
-#    line = ' ' * args.posting_indent + account
-#
-#    if amount:
-#        p = precision.get(currency, 2)
-#        amt_str = f"{amount:,.{p}f}"
-#        try:
-#            whole_amount_width = amt_str.index('.')
-#        except ValuaError:
-#            whole_amount_width = len(amt_str)
-#        finally:
-#            pad = ' ' * max(args.decimal_align
-#                            - args.posting_indent
-#                            - len(account)
-#                            - whole_amount_width - 1, 2)
-#        line += pad + amt_str
-#
-#        line += ' ' + currency if currency else ''
-#        line += ' ' + cost if cost else ''
-#        line += ' ' + price if price else ''
-#
-#    meta = metadata(pd)
-#
-#    if meta:
-#        return line + '\n' + meta
-#    else:
-#        return line
-#
-#
 #def transaction(tdict):
 #    """Format transaction line from transaction dict.
 #    """
