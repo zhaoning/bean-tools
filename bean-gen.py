@@ -260,12 +260,15 @@ if not hasattr(sys, 'ps1'):
         fn = args.mono if not args.repo else os.path.join(args.repo, args.mono)
         pathlib.Path(os.path.dirname(fn)).mkdir(parents=True, exist_ok=True)
         with open(fn, 'a') as fd:
-            _ = [fd.write('\n' + j) for j in journals]
+            _ = [fd.write('\n' + j) for j in journals if j]
         if args.repo:
             subprocess.run(['git', '-C', args.repo, 'add', args.mono])
 
     if args.tree:
         for j in journals:
+            if not j:
+                continue
+
             d = date.fromisoformat(j[:10])
             subtree = os.path.join(f"{d.year:04d}", f"{d.month:02d}.bean")
             fn = (os.path.join(args.tree, subtree) if not args.repo
