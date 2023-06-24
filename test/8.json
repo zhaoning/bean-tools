@@ -1,0 +1,66 @@
+[
+        {
+                "payee": "Strata Choice",
+                "narration": "Direct debit",
+                "tags": "#strata #1841",
+                "postings": [
+                        {
+                                "account": "Assets:Prepay:Strata-Choice",
+                                "amount": 795.55,
+                                "currency": "AUD"
+                        },
+                        {
+                                "account": "Assets:Saving:Virgin-Saver"
+                        }
+                ],
+                "schedule": {
+                        "type": "day of months",
+                        "day": 1,
+                        "months": [2, 5, 8, 11],
+                        "expire": "2023-11-01"
+                }
+        },
+        {
+                "narration": "Expense recognised",
+                "tags": "#strata #1841",
+                "postings": [
+                        {
+                                "account": "Expenses:Finance:Property",
+                                "amount": 265.18,
+                                "currency": "AUD"
+                        },
+                        {
+                                "account": "Assets:Prepay:Strata-Choice"
+                        }
+                ],
+                "schedule": {
+                        "type": "day of month",
+                        "day": 1,
+                        "expire": "2023-11-01"
+                }
+        },
+        {
+                "directive": "pad",
+                "date": "2023-07-31",
+                "account": "Assets:Prepay:Strata-Choice",
+                "pad": "Expenses:Finance:Property",
+                "schedule": {
+                        "type": "end of months",
+                        "months": [1, 4, 7, 10],
+                        "expire": "2023-11-01"
+                }
+        },
+        {
+                "directive": "balance",
+                "date": "2023-05-01",
+                "account": "Assets:Prepay:Strata-Choice",
+                "amount": 0,
+                "currency": "AUD",
+                "schedule": {
+                        "type": "day of months",
+                        "day": 1,
+                        "months": [2, 5, 8, 11],
+                        "expire": "2023-11-01"
+                }
+        }
+]
