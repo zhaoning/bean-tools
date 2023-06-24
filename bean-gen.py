@@ -61,40 +61,6 @@ class BeanMeta(Namespace):
                           + (f'"{v.strip()}"' if type(v) is str else str(v))
                           for k, v in self.__dict__.items() if v])
 
-class BeanOpen(Namespace):
-    def __init__(self, **data):
-        super().__init__()
-        self.date = data.pop('date', date.today().isoformat()).strip()
-        self.account = data.pop('account').strip()
-        self.currencies = data.pop('currencies', '').strip()
-        self.method = data.pop('method', '').strip()
-        self.meta = BeanMeta(**data)
-
-    def __str__(self):
-        line = self.date + ' open ' + self.account
-        line += ' ' + self.currencies if self.currencies else ''
-        line += ' "' + self.method + '"' if self.method else ''
-        meta = str(self.meta)
-        line += '\n' + meta if meta else ''
-        return line + '\n'
-
-class BeanBalance(Namespace):
-    def __init__(self, **data):
-        super().__init__()
-        self.date = data.pop('date', date.today().isoformat()).strip()
-        self.account = data.pop('account').strip()
-        self.amount = data.pop('amount')
-        self.currency = data.pop('currency', '').strip()
-        self.meta = BeanMeta(**data)
-
-    def __str__(self):
-        p = conf.precision.get(self.currency, 2)
-        amt_str = f"{self.amount:,.{p}f}"
-        meta = str(self.meta)
-        line = f"{self.date} balance {self.account} {amt_str} {self.currency}"
-        line += '\n' + meta if meta else ''
-        return line + '\n'
-
 class BeanSchedule(Namespace):
     def __init__(self, **data):
         super().__init__(**data)
@@ -132,6 +98,10 @@ class BeanSchedule(Namespace):
             return True if (d + timedelta(days=1)).day == 1 else False
         elif self.type == 'day of months':
             return (True if d.month in self.months and d.day == self.day
+                    else False)
+        elif self.type == 'end of months':
+            return (True if ((d + timedelta(days=1)).day == 1
+                             and d.month in self.months)
                     else False)
         else:
             raise ValueError(f"Unexpected schedule type: {self.type}.")
@@ -203,25 +173,67 @@ class BeanTransaction(Namespace):
 
         return text + '\n'
 
-a = {
-        'date': '2021-11-17\n',
-        'flag': ' *',
-        'narration': 'Internal transfer',
-        'tags': '&beijing+2008   %###tokYO.2020   ',
-        'links': '^band-21t4',
-        'note': ' Make sure I am trimmed   ',
-        'postings': [
-            {'account': ' Assets:Cash  ',
-             'amount': 123.45,
-             'currency': 'AUD ',
-             'note': '!@#$%^&*()_'
-            },
-            {'account': 'Assets:CBA-Offset'}
-            ]
-        }
+class BeanOpen(Namespace):
+    def __init__(self, **data):
+        super().__init__()
+        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.account = data.pop('account').strip()
+        self.currencies = data.pop('currencies', '').strip()
+        self.method = data.pop('method', '').strip()
+        self.meta = BeanMeta(**data)
+
+    def __str__(self):
+        line = self.date + ' open ' + self.account
+        line += ' ' + self.currencies if self.currencies else ''
+        line += ' "' + self.method + '"' if self.method else ''
+        meta = str(self.meta)
+        line += '\n' + meta if meta else ''
+        return line + '\n'
+
+class BeanBalance(Namespace):
+    def __init__(self, **data):
+        super().__init__()
+        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.account = data.pop('account').strip()
+        self.amount = data.pop('amount')
+        self.currency = data.pop('currency', '').strip()
+        self.schedule = (BeanSchedule(**data.pop('schedule'))
+                         if 'schedule' in data else None)
+        self.meta = BeanMeta(**data)
+
+    def __str__(self):
+        if self.schedule and not self.schedule.check(self.date):
+            return ''
+
+        p = conf.precision.get(self.currency, 2)
+        amt_str = f"{self.amount:,.{p}f}"
+        meta = str(self.meta)
+        line = f"{self.date} balance {self.account} {amt_str} {self.currency}"
+        line += '\n' + meta if meta else ''
+        return line + '\n'
+
+class BeanPad(Namespace):
+    def __init__(self, **data):
+        super().__init__()
+        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.account = data.pop('account').strip()
+        self.pad = data.pop('pad').strip()
+        self.schedule = (BeanSchedule(**data.pop('schedule'))
+                         if 'schedule' in data else None)
+        self.meta = BeanMeta(**data)
+
+    def __str__(self):
+        if self.schedule and not self.schedule.check(self.date):
+            return ''
+
+        meta = str(self.meta)
+        line = f"{self.date} pad {self.account} {self.pad}"
+        line += '\n' + meta if meta else ''
+        return line + '\n'
 
 request_handlers = {'txn': BeanTransaction,
                     'open': BeanOpen,
+                    'pad': BeanPad,
                     'balance': BeanBalance}
 
 def triage(**kwargs):
