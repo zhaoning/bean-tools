@@ -161,4 +161,4 @@ cython_debug/
 
 # Vim session files
 *.vim
-
+*.swp
