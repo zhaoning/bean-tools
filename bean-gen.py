@@ -252,7 +252,10 @@ def parse_request_text(req_text):
 
 def parse_request_file(filename):
     with open(filename, 'r') as f:
-        return parse_request_text(f.read())
+        try:
+            return parse_request_text(f.read())
+        except json.decoder.JSONDecodeError:
+            raise ValueError(f"Bad JSON file: {f}")
 
 if not hasattr(sys, 'ps1'):
     # Non-interactive run
