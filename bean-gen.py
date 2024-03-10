@@ -4,6 +4,7 @@ import re
 import sys
 import json
 import pathlib
+import datetime
 import itertools
 import subprocess
 from datetime import date, timedelta
@@ -25,6 +26,7 @@ conf = Namespace(
 ap = ArgumentParser(description='Beancount journal distributor')
 ap.add_argument('-f', '--files', nargs='*')
 ap.add_argument('-r', '--repo')
+ap.add_argument('-d', '--date')
 ap.add_argument('-m', '--mono')
 ap.add_argument('-t', '--tree')
 ap.add_argument('-c', '--commit', action='store_true')
@@ -74,6 +76,9 @@ class BeanSchedule(Namespace):
         if not hasattr(self, 'expire'):
             self.expire = None
 
+        if not hasattr(self, 'effective'):
+            self.effective = None
+
     def check(self, d):
         """Check if date `d` is on the schedule.
 
@@ -87,6 +92,9 @@ class BeanSchedule(Namespace):
             raise TypeError(f"Illegal type: {type(d)}.")
 
         if self.expire and d >= self.expire:
+            return False
+
+        if self.effective and d < self.effective:
             return False
 
         if self.type == 'intervals since':
@@ -144,7 +152,7 @@ class BeanPosting(Namespace):
 class BeanTransaction(Namespace):
     def __init__(self, **data):
         super().__init__()
-        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.date = data.pop('date', date_str).strip()
         self.flag = data.pop('flag', '*').strip()
         self.payee = data.pop('payee', '').strip()
         self.narration = data.pop('narration', '').strip()
@@ -176,7 +184,7 @@ class BeanTransaction(Namespace):
 class BeanOpen(Namespace):
     def __init__(self, **data):
         super().__init__()
-        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.date = data.pop('date', date_str).strip()
         self.account = data.pop('account').strip()
         self.currencies = data.pop('currencies', '').strip()
         self.method = data.pop('method', '').strip()
@@ -193,7 +201,7 @@ class BeanOpen(Namespace):
 class BeanBalance(Namespace):
     def __init__(self, **data):
         super().__init__()
-        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.date = data.pop('date', date_str).strip()
         self.account = data.pop('account').strip()
         self.amount = data.pop('amount')
         self.currency = data.pop('currency', '').strip()
@@ -215,7 +223,7 @@ class BeanBalance(Namespace):
 class BeanPad(Namespace):
     def __init__(self, **data):
         super().__init__()
-        self.date = data.pop('date', date.today().isoformat()).strip()
+        self.date = data.pop('date', date_str).strip()
         self.account = data.pop('account').strip()
         self.pad = data.pop('pad').strip()
         self.schedule = (BeanSchedule(**data.pop('schedule'))
@@ -258,6 +266,11 @@ def parse_request_file(filename):
             raise ValueError(f"Bad JSON file: {f}")
 
 if not hasattr(sys, 'ps1'):
+    if args.date:
+        date_str = args.date
+    else:
+        date_str = date.today().isoformat()
+
     # Non-interactive run
     if args.files:
         requests = itertools.chain.from_iterable(
